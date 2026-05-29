@@ -41,11 +41,15 @@ class TextParser:
 
         parsed_data = {
             "passport_number": None,
+            "first_name": None,
+            "last_name": None,
             "full_name": None,
             "date_of_birth": None,
             "nationality": None,
             "gender": None,
+            "date_of_issue": None,
             "expiry_date": None,
+            "authority": None,
             "confidence": avg_confidence,
             "mrz_detected": False
         }
@@ -60,11 +64,17 @@ class TextParser:
                 
                 if parsed_data["passport_number"]:
                     parsed_data["confidence"] = max(parsed_data["confidence"], 0.95)
+                    # Note: MRZ does not contain date_of_issue and authority,
+                    # so we still attempt to parse those from visual fields even if MRZ is detected.
+                    visual_fields = self._parse_visual_fields(lines)
+                    parsed_data["date_of_issue"] = normalize_date(visual_fields.get("date_of_issue"))
+                    parsed_data["authority"] = visual_fields.get("authority")
+                    
                     parsed_data["date_of_birth"] = normalize_date(parsed_data["date_of_birth"])
                     parsed_data["expiry_date"] = normalize_date(parsed_data["expiry_date"])
                     return parsed_data
             except Exception as e:
-                print(f"MRZ parsing failed: {str(e)}")
+                print(f"MRZ parsing warning: {str(e)}")
 
         # Step 2: Visual Parser Fallback (Secondary Priority)
         visual_data = self._parse_visual_fields(lines)
@@ -86,16 +96,20 @@ class TextParser:
         if parsed_data.get("passport_number"):
             parsed_data["passport_number"] = re.sub(r'[^A-Z0-9]', '', parsed_data["passport_number"].upper())
             
+        # Normalize all dates
         parsed_data["date_of_birth"] = normalize_date(parsed_data.get("date_of_birth"))
+        parsed_data["date_of_issue"] = normalize_date(parsed_data.get("date_of_issue"))
         parsed_data["expiry_date"] = normalize_date(parsed_data.get("expiry_date"))
 
         # Heuristic quality-score adjustment
         valid_fields = 0
-        total_fields = 5
+        total_fields = 7
         
         if validate_passport_number(parsed_data.get("passport_number")): valid_fields += 1
-        if parsed_data.get("full_name") and len(parsed_data["full_name"]) > 3: valid_fields += 1
+        if parsed_data.get("first_name") and len(parsed_data["first_name"]) >= 2: valid_fields += 1
+        if parsed_data.get("last_name") and len(parsed_data["last_name"]) >= 2: valid_fields += 1
         if parsed_data.get("date_of_birth") and '-' in str(parsed_data["date_of_birth"]): valid_fields += 1
+        if parsed_data.get("date_of_issue") and '-' in str(parsed_data["date_of_issue"]): valid_fields += 1
         if parsed_data.get("expiry_date") and '-' in str(parsed_data["expiry_date"]): valid_fields += 1
         if parsed_data.get("nationality"): valid_fields += 1
         
@@ -107,7 +121,6 @@ class TextParser:
     def _extract_mrz_lines(self, lines):
         cleaned_lines = []
         for line in lines:
-            # Clean up common OCR symbol misreads to support MRZ parsing
             cleaned = line.strip().upper()
             cleaned = re.sub(r'\s+', '', cleaned)
             for char in ['(', ')', '{', '}', '[', ']', '«', '»', '¢', '£', '¥', '\\', '|', '/', ':', ';']:
@@ -118,7 +131,6 @@ class TextParser:
         second_line = None
         first_line_idx = -1
         
-        # 1. Locate the first line starting with P
         for idx, cleaned in enumerate(cleaned_lines):
             if (cleaned.startswith('P<') or cleaned.startswith('P_') or re.match(r'^P[<A-Z_]{4,}', cleaned)) and len(cleaned) >= 32:
                 first_line = cleaned
@@ -126,18 +138,15 @@ class TextParser:
                 break
                 
         if first_line_idx != -1:
-            # 2. Locate the second line (usually right below the first)
             for offset in range(1, 4):
                 next_idx = first_line_idx + offset
                 if next_idx < len(cleaned_lines):
                     cand = cleaned_lines[next_idx]
-                    # Second line is alphanumeric, length 32-50, and doesn't start with P<
                     if len(cand) >= 32 and not (cand.startswith('P<') or cand.startswith('P_')):
                         second_line = cand
                         break
                         
         if first_line and second_line:
-            # Pad to standard 44 characters if needed
             first_line = first_line.ljust(44, '<')[:44]
             second_line = second_line.ljust(44, '<')[:44]
             return [first_line, second_line]
@@ -147,22 +156,27 @@ class TextParser:
     def _parse_mrz(self, line1, line2):
         data = {}
         
-        # Line 1: Country & Name details
         country_code = line1[2:5].replace('<', '').strip()
         data["nationality"] = country_code
         
         name_part = line1[5:]
         if '<<' in name_part:
             parts = name_part.split('<<')
-            surname = parts[0].replace('<', ' ').strip()
-            given_names = parts[1].replace('<', ' ').strip()
+            surname = parts[0].replace('<', ' ').strip().title()
+            given_names = parts[1].replace('<', ' ').strip().title()
+            data["last_name"] = surname
+            data["first_name"] = given_names
             data["full_name"] = f"{given_names} {surname}".strip()
         else:
-            data["full_name"] = name_part.replace('<', ' ').strip()
-
-        # Clean/Standardize Name spaces
-        if data.get("full_name"):
-            data["full_name"] = re.sub(r'\s+', ' ', data["full_name"]).title()
+            names = name_part.replace('<', ' ').strip().title().split()
+            if len(names) >= 2:
+                data["last_name"] = names[0]
+                data["first_name"] = " ".join(names[1:])
+                data["full_name"] = " ".join(names)
+            else:
+                data["last_name"] = names[0] if names else None
+                data["first_name"] = None
+                data["full_name"] = names[0] if names else None
 
         # Line 2: Passport Number & Dates
         raw_passport_num = line2[0:9]
@@ -203,11 +217,15 @@ class TextParser:
     def _parse_visual_fields(self, lines):
         data = {
             "passport_number": None,
+            "first_name": None,
+            "last_name": None,
             "full_name": None,
             "date_of_birth": None,
             "nationality": None,
             "gender": None,
-            "expiry_date": None
+            "date_of_issue": None,
+            "expiry_date": None,
+            "authority": None
         }
 
         full_text = " ".join(lines)
@@ -226,12 +244,12 @@ class TextParser:
                 data["passport_number"] = match.group(1)
                 break
 
-        # 2. Extract Name via Label Detection
+        # 2. Extract Names via Label Detection
         surname = ""
         given_names = ""
         for i, line in enumerate(lines):
             # Check Surname labels
-            if re.search(r'SURNAME|NOM|FAMILY\s+NAME|HACAB', line, re.IGNORECASE):
+            if re.search(r'SURNAME|NOM|FAMILY\s+NAME|HACAB|HACB', line, re.IGNORECASE):
                 for offset in [1, 2]:
                     if i + offset < len(lines):
                         cand = lines[i+offset].strip()
@@ -261,15 +279,19 @@ class TextParser:
                     given_names = lines[i+1].strip()
 
         if surname or given_names:
+            data["last_name"] = surname.title() if surname else None
+            data["first_name"] = given_names.title() if given_names else None
             data["full_name"] = f"{given_names} {surname}".strip().title()
         else:
-            # Fallback search for full name lines
             for line in lines[2:10]:
                 if line.isupper() and len(line.split()) >= 2 and not any(lbl in line for lbl in ["PASSPORT", "UNITED", "REPUBLIC", "OFFICE", "STATE", "COUNTRY", "NOM", "PRENOM", "TAJIKISTAN"]):
+                    parts = line.strip().title().split()
+                    data["first_name"] = parts[0]
+                    data["last_name"] = " ".join(parts[1:])
                     data["full_name"] = line.strip().title()
                     break
 
-        # 3. Extract Nationality via Label Detection
+        # 3. Extract Nationality
         for i, line in enumerate(lines):
             if re.search(r'NATIONALITY|NATIONALITE|WAXPBAH', line, re.IGNORECASE):
                 for offset in [1, 2]:
@@ -283,11 +305,11 @@ class TextParser:
                             data["nationality"] = cand
                             break
 
-        # 4. Extract Birth and Expiry Dates
+        # 4. Extract Birth, Issue, and Expiry Dates
         dob_keywords = ["BIRTH", "NAISSANCE", "NE", "DOB", "TABA\u041B\u041B\u0423\u0414"]
-        expiry_keywords = ["EXPIRY", "EXPIRATION", "EXP", "\u042d\u0421\u0422\u0418\u0411\u041e\u0420"]
+        issue_keywords = ["ISSUE", "ОГОЗИ", "ОFОЗИ", "DATE OF ISSUE", "ОГОЗИ ЭЪТИБОР"]
+        expiry_keywords = ["EXPIRY", "EXPIRATION", "EXP", "АНЧОМИ"]
         
-        # Support periods, commas, colons, slashes, spaces
         date_pattern = r'(\b\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+\d{2,4}\b)'
         
         for i, line in enumerate(lines):
@@ -297,6 +319,13 @@ class TextParser:
                         match = re.search(date_pattern, lines[i+offset])
                         if match:
                             data["date_of_birth"] = match.group(1)
+                            break
+            if any(k in line.upper() for k in issue_keywords):
+                for offset in [0, 1, -1, 2]:
+                    if 0 <= i + offset < len(lines):
+                        match = re.search(date_pattern, lines[i+offset])
+                        if match:
+                            data["date_of_issue"] = match.group(1)
                             break
             if any(k in line.upper() for k in expiry_keywords):
                 for offset in [0, 1, -1, 2]:
@@ -312,5 +341,24 @@ class TextParser:
             if cleaned == 'M' or cleaned == 'F' or cleaned == 'MM' or cleaned == 'FF':
                 data["gender"] = 'M' if 'M' in cleaned else 'F'
                 break
+
+        # 6. Extract Authority
+        authority_keywords = ["AUTHORITY", "MAKOM", "МАКОМИ", "ISSUING", "AUTORITE"]
+        for i, line in enumerate(lines):
+            if any(k in line.upper() for k in authority_keywords):
+                for offset in [1, 2, 3]:
+                    if i + offset < len(lines):
+                        cand = lines[i+offset].strip()
+                        if any(lbl in cand.upper() for lbl in ["PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER"]):
+                            continue
+                        latin = extract_latin_part(cand)
+                        if latin:
+                            data["authority"] = latin
+                            break
+                        elif is_latin_text(cand):
+                            data["authority"] = cand
+                            break
+                if not data["authority"] and i + 1 < len(lines):
+                    data["authority"] = lines[i+1].strip()
 
         return data

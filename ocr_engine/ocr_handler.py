@@ -1,7 +1,6 @@
 import os
 import numpy as np
 
-# Check if EasyOCR is available in the environment
 try:
     import easyocr
     EASYOCR_AVAILABLE = True
@@ -13,10 +12,8 @@ class OCRHandler:
         self.languages = languages
         self.reader = None
         
-        # Load the OCR reader
         if EASYOCR_AVAILABLE:
             try:
-                # Set gpu=False as standard CPU environment is typical for local or Replit testing
                 self.reader = easyocr.Reader(self.languages, gpu=False)
                 print("EasyOCR reader initialized successfully on CPU.")
             except Exception as e:
@@ -28,11 +25,9 @@ class OCRHandler:
     def extract_text(self, img_np):
         """
         Performs text extraction on preprocessed images.
-        Returns a list of dictionaries with text and confidence scores.
         """
         if self.reader is not None:
             try:
-                # EasyOCR returns a list of tuples: (bbox, text, confidence)
                 results = self.reader.readtext(img_np)
                 extracted = []
                 for (bbox, text, confidence) in results:
@@ -49,8 +44,7 @@ class OCRHandler:
 
     def _get_fallback_ocr_data(self):
         """
-        Fallback simulation of passport OCR text to ensure application remains 
-        fully functional and testable without active EasyOCR/PyTorch downloads.
+        Fallback simulation of passport OCR text including separated names, issue dates, and authority.
         """
         return [
             {"text": "PASSPORT / PASSEPORT", "confidence": 0.99},
@@ -66,8 +60,12 @@ class OCRHandler:
             {"text": "15 MAY / MAI 1990", "confidence": 0.94},
             {"text": "SEX / SEXE", "confidence": 0.97},
             {"text": "M", "confidence": 0.99},
+            {"text": "DATE OF ISSUE / DATE DE DELIVRANCE", "confidence": 0.93},
+            {"text": "15 MAY / MAI 2020", "confidence": 0.94},
             {"text": "DATE OF EXPIRY / DATE D'EXPIRATION", "confidence": 0.92},
             {"text": "15 MAY / MAI 2030", "confidence": 0.94},
+            {"text": "AUTHORITY / AUTORITE", "confidence": 0.92},
+            {"text": "USDOS / DEPT OF STATE", "confidence": 0.96},
             {"text": "P<USADOE<<JOHN<MICHAEL<<<<<<<<<<<<<<<<<<<<<<", "confidence": 0.93},
             {"text": "A123456788USA9005151M3005156<<<<<<<<<<<<<<04", "confidence": 0.95}
         ]
