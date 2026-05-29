@@ -297,7 +297,33 @@ class TextParser:
                             data["nationality"] = cand
                             break
 
-        # 4. Extract Birth, Issue, and Expiry Dates - IMPROVED KEYWORD MATCHING
+        # 4. Extract Dates - IMPROVED to handle corrupted OCR
+        date_pattern = r'(\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+\d{2,4})'
+        
+        # Collect all dates found in the document
+        all_dates = []
+        for i, line in enumerate(lines):
+            matches = re.findall(date_pattern, line)
+            for match in matches:
+                all_dates.append((i, match))
+        
+        # Strategy: In passport structure, dates typically appear in order:
+        # 1. Date of Birth (early in document)
+        # 2. Date of Issue (middle)
+        # 3. Date of Expiry (late)
+        
+        if len(all_dates) >= 3:
+            # Assign by position
+            data["date_of_birth"] = all_dates[0][1]
+            data["date_of_issue"] = all_dates[1][1]
+            data["expiry_date"] = all_dates[2][1]
+        elif len(all_dates) == 2:
+            data["date_of_birth"] = all_dates[0][1]
+            data["expiry_date"] = all_dates[1][1]
+        elif len(all_dates) == 1:
+            data["date_of_birth"] = all_dates[0][1]
+        
+        # Also try keyword-based extraction for better accuracy
         dob_keywords = [
             "BIRTH", "NAISSANCE", "NE", "DOB", "ТАВАЛЛУДИ", "DATE OF BIRTH",
             "ДАТА РОЖДЕНИЯ", "ТАВАЛИД", "BIRTHDAY"
@@ -306,7 +332,7 @@ class TextParser:
         issue_keywords = [
             "ISSUE", "ОГОЗИ", "ОFОЗИ", "DATE OF ISSUE", "ОГОЗИ ЭЪТИБОР", 
             "ДАТА ВЫДАЧИ", "ВЫДАН", "ISSUED", "ДАТА ИЗДАНИЯ", "ТАЪЙИД", "ДАТА ИЗДАЧИ",
-            "ВЫДАЧИ", "OFOSI"
+            "ВЫДАЧИ", "OFOSI", "Oioxi"  # Include common OCR misreadings
         ]
         
         expiry_keywords = [
@@ -314,17 +340,14 @@ class TextParser:
             "ДЕЙСТВИТЕЛЕН", "VALID UNTIL", "ДЕЙСТВ", "ANCOMI"
         ]
         
-        date_pattern = r'(\b\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+\d{2,4}\b)'
-        
         for i, line in enumerate(lines):
-            # Improved matching: check if any keyword is in the line (case-insensitive)
             line_upper = line.upper()
             
             if any(k.upper() in line_upper for k in dob_keywords):
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
-                        if match:
+                        if match and not data["date_of_birth"]:
                             data["date_of_birth"] = match.group(1)
                             break
             
@@ -340,7 +363,7 @@ class TextParser:
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
-                        if match:
+                        if match and not data["expiry_date"]:
                             data["expiry_date"] = match.group(1)
                             break
 
@@ -351,7 +374,7 @@ class TextParser:
                 data["gender"] = 'M' if 'M' in cleaned else 'F'
                 break
 
-        # 6. Extract Authority - IMPROVED KEYWORD MATCHING
+        # 6. Extract Authority - more flexible approach
         authority_keywords = [
             "AUTHORITY", "MAKOM", "МАКОМИ", "ISSUING", "AUTORITE",
             "ВЫДАВШИЙ", "ВЫДАННЫЙ", "ORGAN", "ОРГАНОМ", "ISSUED BY",
@@ -361,11 +384,14 @@ class TextParser:
         for i, line in enumerate(lines):
             line_upper = line.upper()
             if any(k.upper() in line_upper for k in authority_keywords):
+                # Look at next few lines for authority name
                 for offset in [1, 2, 3]:
                     if i + offset < len(lines):
                         cand = lines[i+offset].strip()
-                        # Skip common field labels
+                        # Skip common field labels and empty/short lines
                         if any(lbl in cand.upper() for lbl in ["PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER", "VALIDITY", "BIRTH", "SEX"]):
+                            continue
+                        if len(cand) < 3:
                             continue
                         latin = extract_latin_part(cand)
                         if latin and len(latin) >= 3:
@@ -376,7 +402,7 @@ class TextParser:
                             break
                 if not data["authority"] and i + 1 < len(lines):
                     cand = lines[i+1].strip()
-                    if len(cand) >= 3 and not cand.isupper():
+                    if len(cand) >= 3:
                         data["authority"] = cand
 
         return data
