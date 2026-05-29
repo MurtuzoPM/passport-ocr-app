@@ -97,7 +97,7 @@ def health():
         }
     })
 
-def process_single_image(file_path):
+def process_single_image(file_path, debug=False):
     """
     Core pipeline wrapper: Preprocess -> OCR -> Parse.
     """
@@ -109,6 +109,11 @@ def process_single_image(file_path):
 
     # 2. Perform OCR text extraction
     ocr_results = ocr_handler.extract_text(preprocessed_img)
+    
+    if debug:
+        logging.info(f"DEBUG: OCR Results ({len(ocr_results)} items):")
+        for idx, item in enumerate(ocr_results):
+            logging.info(f"  [{idx}] {item}")
 
     # 3. Parse text into structured fields
     parsed_data = text_parser.parse(ocr_results)
@@ -118,6 +123,7 @@ def process_single_image(file_path):
 @app.route('/api/extract', methods=['POST'])
 def extract():
     start_time = time.time()
+    debug_mode = request.args.get('debug', 'false').lower() == 'true'
     
     # Validation checks for multipart request
     if 'file' not in request.files:
@@ -158,7 +164,7 @@ def extract():
         file.save(temp_path)
         
         # Execute pipeline
-        extracted_data = process_single_image(temp_path)
+        extracted_data = process_single_image(temp_path, debug=debug_mode)
         
         processing_time = round(time.time() - start_time, 3)
         return jsonify({
