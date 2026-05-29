@@ -20,6 +20,75 @@ def validate_passport_number(passport_num):
     pattern = r'^[A-Z0-9]{6,12}$'
     return bool(re.match(pattern, cleaned))
 
+def _parse_month_name_date(date_str):
+    """
+    Parse dates with month names like '15 MAY 1990', '15 MAY / MAI 1990', '15/MAI/1990'.
+    Works on the original string (no pre-cleaning) to preserve '/' separators.
+    Returns (day, month, year) tuple or None.
+    """
+    MONTH_NAMES = {
+        # English
+        "JAN": 1, "JANU": 1, "JANUARY": 1, "JANV": 1,
+        "FEB": 2, "FEBR": 2, "FEBRUARY": 2, "FEV": 2, "FEVR": 2,
+        "MAR": 3, "MARCH": 3, "MARS": 3, "MAERZ": 3,
+        "APR": 4, "APRI": 4, "APRIL": 4, "AVR": 4, "AVRI": 4,
+        "MAY": 5, "MAI": 5, "MAG": 5, "MAGG": 5,
+        "JUN": 6, "JUNE": 6, "JUIN": 6, "GIU": 6,
+        "JUL": 7, "JULY": 7, "JUIL": 7, "JUILL": 7, "JULI": 7, "LUG": 7,
+        "AUG": 8, "AUGUST": 8, "AOUT": 8, "AGO": 8,
+        "SEP": 9, "SEPT": 9, "SEPTEMBER": 9, "SET": 9,
+        "OCT": 10, "OCTOBER": 10, "OKT": 10, "OTT": 10,
+        "NOV": 11, "NOVEMBER": 11,
+        "DEC": 12, "DECEMBER": 12, "DEZ": 12, "DIC": 12, "DICI": 12, "DECE": 12,
+        # Italian
+        "GEN": 1, "GENN": 1,
+        # Russian transliterations (common on Russian passports)
+        "ЯНВ": 1, "ФЕВ": 2, "МАР": 3, "АПР": 4, "МАЙ": 5, "ИЮН": 6,
+        "ИЮЛ": 7, "АВГ": 8, "СЕН": 9, "ОКТ": 10, "НОЯ": 11, "ДЕК": 12,
+    }
+    
+    if not date_str:
+        return None
+
+    # Match directly on the original string without pre-cleaning
+    # Pattern: "DD MMM YYYY", "DD MMM / MMM YYYY", "DD/MMM/YYYY", "DD-MMM-YYYY"
+    match = re.search(
+        r'(\d{1,2})'           # day
+        r'[\s/-]+'             # separator between day and month
+        r'([A-Za-zА-Яа-я]{3,10})'  # month abbreviation
+        r'(?:\s*/\s*[A-Za-zА-Яа-я]{3,10})?'  # optional second month (e.g., "MAI" in "MAY / MAI")
+        r'[\s/-]+'             # separator between month and year
+        r'(\d{2,4})',          # year
+        date_str
+    )
+    
+    if not match:
+        return None
+
+    try:
+        day = int(match.group(1))
+        month_str = match.group(2).upper()
+        year = int(match.group(3))
+
+        if year < 100:
+            current_year = datetime.now().year
+            century = 2000 if year <= (current_year % 100) + 20 else 1900
+            year = century + year
+
+        month = MONTH_NAMES.get(month_str)
+        if month is None:
+            month = MONTH_NAMES.get(month_str[:3])
+        if month is None:
+            month = MONTH_NAMES.get(month_str[:4])
+        if month is None:
+            return None
+
+        datetime(year, month, day)
+        return (day, month, year)
+    except (ValueError, TypeError):
+        return None
+
+
 def normalize_date(date_str):
     """
     Attempts to normalize various date formats to YYYY-MM-DD.
@@ -28,8 +97,14 @@ def normalize_date(date_str):
     if not date_str:
         return None
     
-    # Clean text first
-    date_str = re.sub(r'[\s\-/. ]+', ' ', date_str).strip()
+    # Try month-name date format first (e.g., "15 MAY 1990")
+    month_date = _parse_month_name_date(date_str)
+    if month_date:
+        day, month, year = month_date
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    
+    # Clean text first — handle commas and colons which OCR sometimes produces instead of dots
+    date_str = re.sub(r'[\s\-/. ,:;]+', ' ', date_str).strip()
     
     # Try MRZ date format YYMMDD (6 digits)
     if len(date_str) == 6 and date_str.isdigit():

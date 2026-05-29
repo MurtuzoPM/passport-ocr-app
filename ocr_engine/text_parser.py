@@ -5,7 +5,7 @@ from datetime import datetime
 
 # Adjust path to import from utils
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.validators import validate_passport_number, normalize_date, clean_text
+from utils.validators import validate_passport_number, normalize_date, clean_text, _parse_month_name_date
 
 def is_latin_text(text):
     if not text:
@@ -29,6 +29,7 @@ def extract_latin_part(text):
                 return part_clean
     return ""
 
+
 def validate_date_string(date_str):
     """
     Validates a date string and attempts to fix common OCR errors.
@@ -37,8 +38,15 @@ def validate_date_string(date_str):
     if not date_str:
         return None
     
+    # First try to parse as month-name date
+    month_date = _parse_month_name_date(date_str)
+    if month_date:
+        day, month, year = month_date
+        return f"{day:02d}.{month:02d}.{year:04d}"
+    
     # Extract day, month, year from various formats
-    date_str_clean = re.sub(r'[\s\-/. ]+', '.', date_str).strip()
+    # Also handle commas and colons which OCR sometimes produces instead of dots
+    date_str_clean = re.sub(r'[\s\-/. ,:;]+', '.', date_str).strip()
     
     # Try to parse DD.MM.YYYY or DD.MM.YY
     match = re.match(r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', date_str_clean)
@@ -366,7 +374,9 @@ class TextParser:
                             break
 
         # 4. Extract Dates - with validation and OCR error correction
-        date_pattern = r'(\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+\d{2,4})'
+        # Pattern for numeric dates: "DD.MM.YYYY", "DD/MM/YY", etc.
+        # Also handles month-name dates: "DD MMM YYYY" or "DD MMM / MMM YYYY"
+        date_pattern = r'(\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+(?:[A-Za-z]{3,10}[-/. ,:;]+)?\d{2,4})'
         
         # Collect all dates found in the document with validation
         all_dates = []
@@ -388,8 +398,9 @@ class TextParser:
             data["date_of_issue"] = all_dates[1][1]
             data["expiry_date"] = all_dates[2][1]
         elif len(all_dates) == 2:
+            # With 2 dates, assign as DOB + Issue (expiry comes from MRZ)
             data["date_of_birth"] = all_dates[0][1]
-            data["expiry_date"] = all_dates[1][1]
+            data["date_of_issue"] = all_dates[1][1]
         elif len(all_dates) == 1:
             data["date_of_birth"] = all_dates[0][1]
         
@@ -402,7 +413,9 @@ class TextParser:
         issue_keywords = [
             "ISSUE", "ОГОЗИ", "ОFОЗИ", "DATE OF ISSUE", "ОГОЗИ ЭЪТИБОР", 
             "ДАТА ВЫДАЧИ", "ВЫДАН", "ISSUED", "ДАТА ИЗДАНИЯ", "ТАЪЙИД", "ДАТА ИЗДАЧИ",
-            "ВЫДАЧИ", "OFOSI", "Oioxi"  # Include common OCR misreadings
+            "ВЫДАЧИ", "OFOSI", "Oioxi",  # Include common OCR misreadings
+            "DALE", "DARE", "0FE8", "FE8S", "DELIVRANCE", "DELIVERED",  # Garbled OCR variants
+            "ISSU", "SSUE", "ESU", "OF ISSUE", "ISS"
         ]
         
         expiry_keywords = [
@@ -454,20 +467,28 @@ class TextParser:
         authority_keywords = [
             "AUTHORITY", "MAKOM", "МАКОМИ", "ISSUING", "AUTORITE",
             "ВЫДАВШИЙ", "ВЫДАННЫЙ", "ORGAN", "ОРГАНОМ", "ISSUED BY",
-            "МЕСТО ВЫДАЧИ", "ОРГАНОМ", "АУТИРИТИ", "MACOMI"
+            "МЕСТО ВЫДАЧИ", "ОРГАНОМ", "АУТИРИТИ", "MACOMI",
+            "AUTORIDAD", "AUTORITA", "BEHORDE", "MYNDIGHED",
+            "VIRANOMAINEN", "AUSSTELLENDE", "ISSUE", "ISSUED"
         ]
+        
+        skip_labels = {"PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER", "VALIDITY", "BIRTH", "SEX", "GIVEN", "SURNAME", "NATIONALITY"}
         
         for i, line in enumerate(lines):
             line_upper = line.upper()
             if any(k.upper() in line_upper for k in authority_keywords):
                 # Look at next few lines for authority name
-                for offset in [1, 2, 3]:
+                for offset in range(1, 5):
                     if i + offset < len(lines):
                         cand = lines[i+offset].strip()
                         # Skip common field labels and empty/short lines
-                        if any(lbl in cand.upper() for lbl in ["PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER", "VALIDITY", "BIRTH", "SEX"]):
+                        cand_upper = cand.upper()
+                        if any(lbl in cand_upper for lbl in skip_labels):
                             continue
                         if len(cand) < 3:
+                            continue
+                        # Skip lines that are just dates or document numbers
+                        if re.match(r'^[\d\s\-/.]+$', cand):
                             continue
                         latin = extract_latin_part(cand)
                         if latin and len(latin) >= 3:
@@ -480,5 +501,42 @@ class TextParser:
                     cand = lines[i+1].strip()
                     if len(cand) >= 3:
                         data["authority"] = cand
+
+        # 7. Fallback: If authority still not found, try to find it near the bottom of the document
+        # Authority text is often on the same or next line after a date_of_issue or expiry_date label
+        if not data.get("authority"):
+            # Look for lines with slashes containing org names (e.g. "USDOS / DEPT OF STATE")
+            for line in lines:
+                if '/' in line and not any(lbl in line.upper() for lbl in ["PASSPORT", "DATE", "BIRTH", "EXPIRY", "ISSUE", "NATIONALITY", "SURNAME", "GIVEN", "SEX", "MRZ", "P<"]):
+                    parts = line.split('/')
+                    if len(parts) >= 2:
+                        for part in parts:
+                            latin = extract_latin_part(part)
+                            if latin and len(latin) >= 4 and not latin.isdigit():
+                                data["authority"] = line.strip()
+                                break
+                if data.get("authority"):
+                    break
+
+        # 8. Last resort fallback: authority might be in the last few meaningful text lines before MRZ
+        if not data.get("authority"):
+            # MRZ line typically starts with P< or has 44 chars of mostly < and digits
+            mrz_start = None
+            for idx, line in enumerate(lines):
+                if len(line) >= 30 and ('P<' in line or line.count('<') > 10):
+                    mrz_start = idx
+                    break
+            
+            # Look in the 3-5 lines just before MRZ
+            if mrz_start and mrz_start > 3:
+                for idx in range(mrz_start - 1, max(0, mrz_start - 6), -1):
+                    cand = lines[idx].strip()
+                    if len(cand) >= 5 and not re.match(r'^[\d\s\-/.]+$', cand):
+                        cand_upper = cand.upper()
+                        if not any(lbl in cand_upper for lbl in skip_labels):
+                            latin = extract_latin_part(cand)
+                            if latin and len(latin) >= 3:
+                                data["authority"] = latin
+                                break
 
         return data

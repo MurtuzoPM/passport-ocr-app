@@ -154,19 +154,43 @@ document.addEventListener('DOMContentLoaded', () => {
         const genderField = document.getElementById('res-gender');
         const nationalityField = document.getElementById('res-nationality');
         const expiryField = document.getElementById('res-expiry');
+        const issueField = document.getElementById('res-issue');
+        const authorityField = document.getElementById('res-authority');
         const timeField = document.getElementById('res-time');
         const mrzBadge = document.getElementById('res-mrz-badge');
         const confBadge = document.getElementById('res-confidence-badge');
         const confBar = document.getElementById('res-confidence-bar');
         const rawJsonBlock = document.getElementById('res-raw-json');
 
+        // Build full name from first_name and last_name
+        let fullName = 'N/A';
+        const firstName = data.first_name || '';
+        const lastName = data.last_name || '';
+        if (firstName && lastName) {
+            fullName = `${firstName} ${lastName}`.trim();
+        } else if (firstName) {
+            fullName = firstName;
+        } else if (lastName) {
+            fullName = lastName;
+        } else if (data.full_name) {
+            fullName = data.full_name;
+        }
+
         // Text mappings
         passNum.textContent = data.passport_number || 'N/A';
-        nameField.textContent = data.full_name || 'N/A';
+        nameField.textContent = fullName;
         dobField.textContent = data.date_of_birth || 'N/A';
         genderField.textContent = data.gender || 'N/A';
         nationalityField.textContent = data.nationality || 'N/A';
         expiryField.textContent = data.expiry_date || 'N/A';
+        issueField.textContent = data.date_of_issue || 'N/A';
+        // Check if authority data has accent prefix and show it nicely
+        if (data.authority) {
+            authorityField.textContent = data.authority;
+            authorityField.className = 'text-sm font-semibold text-slate-900 mt-0.5';
+        } else {
+            authorityField.textContent = 'N/A';
+        }
         
         timeField.textContent = `Scan Time: ${seconds}s`;
 
