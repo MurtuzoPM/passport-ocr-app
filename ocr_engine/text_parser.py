@@ -29,6 +29,74 @@ def extract_latin_part(text):
                 return part_clean
     return ""
 
+def validate_date_string(date_str):
+    """
+    Validates a date string and attempts to fix common OCR errors.
+    Returns a corrected date string or None if invalid.
+    """
+    if not date_str:
+        return None
+    
+    # Extract day, month, year from various formats
+    date_str_clean = re.sub(r'[\s\-/. ]+', '.', date_str).strip()
+    
+    # Try to parse DD.MM.YYYY or DD.MM.YY
+    match = re.match(r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', date_str_clean)
+    if not match:
+        return None
+    
+    day_str, month_str, year_str = match.groups()
+    
+    try:
+        day = int(day_str)
+        month = int(month_str)
+        year = int(year_str)
+        
+        # Fix 2-digit years
+        if year < 100:
+            current_year = datetime.now().year
+            century = 2000 if year <= (current_year % 100) + 20 else 1900
+            year = century + year
+        
+        # Validate month
+        if month < 1 or month > 12:
+            return None
+        
+        # Fix invalid days using OCR error correction
+        # Common OCR errors: 40->20, 40->09, 3X->3[valid], etc.
+        if day < 1 or day > 31:
+            # Try to fix common OCR misreadings
+            if day == 40:
+                # 40 could be 09, 20, or 30
+                # Try in order of likelihood
+                for corrected_day in [9, 20, 30]:
+                    try:
+                        datetime(year, month, corrected_day)
+                        day = corrected_day
+                        break
+                    except ValueError:
+                        continue
+            elif day > 31:
+                # Try removing first digit or other common errors
+                day_alternatives = [int(day_str[-2:]), int(day_str[0]), int(day_str[-1])]
+                for alt_day in day_alternatives:
+                    if 1 <= alt_day <= 31:
+                        try:
+                            datetime(year, month, alt_day)
+                            day = alt_day
+                            break
+                        except ValueError:
+                            continue
+            else:
+                return None
+        
+        # Validate the corrected date
+        datetime(year, month, day)
+        return f"{day:02d}.{month:02d}.{year:04d}"
+    
+    except (ValueError, TypeError):
+        return None
+
 class TextParser:
     def __init__(self):
         pass
@@ -297,15 +365,17 @@ class TextParser:
                             data["nationality"] = cand
                             break
 
-        # 4. Extract Dates - IMPROVED to handle corrupted OCR
+        # 4. Extract Dates - with validation and OCR error correction
         date_pattern = r'(\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+\d{2,4})'
         
-        # Collect all dates found in the document
+        # Collect all dates found in the document with validation
         all_dates = []
         for i, line in enumerate(lines):
             matches = re.findall(date_pattern, line)
             for match in matches:
-                all_dates.append((i, match))
+                validated_date = validate_date_string(match)
+                if validated_date:
+                    all_dates.append((i, validated_date))
         
         # Strategy: In passport structure, dates typically appear in order:
         # 1. Date of Birth (early in document)
@@ -348,24 +418,30 @@ class TextParser:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match and not data["date_of_birth"]:
-                            data["date_of_birth"] = match.group(1)
-                            break
+                            validated = validate_date_string(match.group(1))
+                            if validated:
+                                data["date_of_birth"] = validated
+                                break
             
             if any(k.upper() in line_upper for k in issue_keywords):
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match:
-                            data["date_of_issue"] = match.group(1)
-                            break
+                            validated = validate_date_string(match.group(1))
+                            if validated:
+                                data["date_of_issue"] = validated
+                                break
             
             if any(k.upper() in line_upper for k in expiry_keywords):
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match and not data["expiry_date"]:
-                            data["expiry_date"] = match.group(1)
-                            break
+                            validated = validate_date_string(match.group(1))
+                            if validated:
+                                data["expiry_date"] = validated
+                                break
 
         # 5. Extract Gender / Sex
         for line in lines:
