@@ -43,7 +43,6 @@ class TextParser:
             "passport_number": None,
             "first_name": None,
             "last_name": None,
-            "full_name": None,
             "date_of_birth": None,
             "nationality": None,
             "gender": None,
@@ -166,17 +165,15 @@ class TextParser:
             given_names = parts[1].replace('<', ' ').strip().title()
             data["last_name"] = surname
             data["first_name"] = given_names
-            data["full_name"] = f"{given_names} {surname}".strip()
         else:
             names = name_part.replace('<', ' ').strip().title().split()
             if len(names) >= 2:
                 data["last_name"] = names[0]
                 data["first_name"] = " ".join(names[1:])
-                data["full_name"] = " ".join(names)
             else:
                 data["last_name"] = names[0] if names else None
                 data["first_name"] = None
-                data["full_name"] = names[0] if names else None
+
 
         # Line 2: Passport Number & Dates
         raw_passport_num = line2[0:9]
@@ -219,7 +216,6 @@ class TextParser:
             "passport_number": None,
             "first_name": None,
             "last_name": None,
-            "full_name": None,
             "date_of_birth": None,
             "nationality": None,
             "gender": None,
@@ -281,14 +277,12 @@ class TextParser:
         if surname or given_names:
             data["last_name"] = surname.title() if surname else None
             data["first_name"] = given_names.title() if given_names else None
-            data["full_name"] = f"{given_names} {surname}".strip().title()
         else:
             for line in lines[2:10]:
                 if line.isupper() and len(line.split()) >= 2 and not any(lbl in line for lbl in ["PASSPORT", "UNITED", "REPUBLIC", "OFFICE", "STATE", "COUNTRY", "NOM", "PRENOM", "TAJIKISTAN"]):
                     parts = line.strip().title().split()
                     data["first_name"] = parts[0]
                     data["last_name"] = " ".join(parts[1:])
-                    data["full_name"] = line.strip().title()
                     break
 
         # 3. Extract Nationality
