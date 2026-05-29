@@ -7,7 +7,7 @@ import sys
 # Add current path to sys.path to resolve imports on startup
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 
 from config import Config
@@ -32,9 +32,57 @@ ocr_handler = OCRHandler(languages=app.config['OCR_LANGUAGE'])
 text_parser = TextParser()
 logging.info("OCR engines initialized successfully.")
 
-@app.route('/')
+@app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    """
+    Headless microservice root. Returns interactive REST API documentation as JSON.
+    """
+    from ocr_engine.ocr_handler import EASYOCR_AVAILABLE
+    return jsonify({
+        "service": "Passport OCR API Microservice",
+        "status": "healthy",
+        "easyocr_engine_available": EASYOCR_AVAILABLE,
+        "documentation": {
+            "description": "Automated OCR & NLP pipeline for extracting structured metadata from passport page scans.",
+            "endpoints": {
+                "/api/extract": {
+                    "method": "POST",
+                    "content_type": "multipart/form-data",
+                    "params": {
+                        "file": "Passport image file (WebP, PNG, JPG, JPEG, TIFF, BMP). Max size: 50MB."
+                    },
+                    "curl_example": "curl -X POST -F \"file=@passport.jpg\" http://127.0.0.1:5000/api/extract",
+                    "success_response_structure": {
+                        "success": True,
+                        "processing_time": 1.45,
+                        "filename": "passport.jpg",
+                        "data": {
+                            "passport_number": "A12345678",
+                            "full_name": "JOHN MICHAEL DOE",
+                            "date_of_birth": "1990-05-15",
+                            "nationality": "USA",
+                            "gender": "M",
+                            "expiry_date": "2030-05-15",
+                            "confidence": 0.95,
+                            "mrz_detected": True
+                        }
+                    }
+                },
+                "/api/extract-batch": {
+                    "method": "POST",
+                    "content_type": "multipart/form-data",
+                    "params": {
+                        "files": "Array of passport image files."
+                    },
+                    "curl_example": "curl -X POST -F \"files=@pass1.jpg\" -F \"files=@pass2.jpg\" http://127.0.0.1:5000/api/extract-batch"
+                },
+                "/health": {
+                    "method": "GET",
+                    "description": "System readiness and active parameters probe."
+                }
+            }
+        }
+    })
 
 @app.route('/health', methods=['GET'])
 def health():
