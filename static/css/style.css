@@ -1,0 +1,56 @@
+/* Custom smooth transition tweaks */
+.transition-all {
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+}
+
+/* Scrollbar customization for pre code blocks */
+pre::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+pre::-webkit-scrollbar-track {
+    background: #0f172a; /* matches slate-900 */
+    border-radius: 8px;
+}
+pre::-webkit-scrollbar-thumb {
+    background: #334155; /* slate-700 */
+    border-radius: 8px;
+}
+pre::-webkit-scrollbar-thumb:hover {
+    background: #475569; /* slate-600 */
+}
+
+/* Dropzone dragover states */
+.dragover {
+    border-color: #4f46e5 !important; /* indigo-600 */
+    background-color: #eef2ff !important; /* indigo-50/40 */
+    box-shadow: 0 0 15px rgba(79, 70, 229, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+/* Soft transition properties */
+.tab-btn {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animation custom speed controls */
+@keyframes pulse-fast {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.animate-pulse-fast {
+    animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth fade-in effects */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
