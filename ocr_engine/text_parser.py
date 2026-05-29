@@ -29,74 +29,6 @@ def extract_latin_part(text):
                 return part_clean
     return ""
 
-def validate_date_string(date_str):
-    """
-    Validates a date string and attempts to fix common OCR errors.
-    Returns a corrected date string or None if invalid.
-    """
-    if not date_str:
-        return None
-    
-    # Extract day, month, year from various formats
-    date_str_clean = re.sub(r'[\s\-/. ]+', '.', date_str).strip()
-    
-    # Try to parse DD.MM.YYYY or DD.MM.YY
-    match = re.match(r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', date_str_clean)
-    if not match:
-        return None
-    
-    day_str, month_str, year_str = match.groups()
-    
-    try:
-        day = int(day_str)
-        month = int(month_str)
-        year = int(year_str)
-        
-        # Fix 2-digit years
-        if year < 100:
-            current_year = datetime.now().year
-            century = 2000 if year <= (current_year % 100) + 20 else 1900
-            year = century + year
-        
-        # Validate month
-        if month < 1 or month > 12:
-            return None
-        
-        # Fix invalid days using OCR error correction
-        # Common OCR errors: 40->20, 40->09, 3X->3[valid], etc.
-        if day < 1 or day > 31:
-            # Try to fix common OCR misreadings
-            if day == 40:
-                # 40 could be 09, 20, or 30
-                # Try in order of likelihood
-                for corrected_day in [9, 20, 30]:
-                    try:
-                        datetime(year, month, corrected_day)
-                        day = corrected_day
-                        break
-                    except ValueError:
-                        continue
-            elif day > 31:
-                # Try removing first digit or other common errors
-                day_alternatives = [int(day_str[-2:]), int(day_str[0]), int(day_str[-1])]
-                for alt_day in day_alternatives:
-                    if 1 <= alt_day <= 31:
-                        try:
-                            datetime(year, month, alt_day)
-                            day = alt_day
-                            break
-                        except ValueError:
-                            continue
-            else:
-                return None
-        
-        # Validate the corrected date
-        datetime(year, month, day)
-        return f"{day:02d}.{month:02d}.{year:04d}"
-    
-    except (ValueError, TypeError):
-        return None
-
 class TextParser:
     def __init__(self):
         pass
@@ -277,6 +209,74 @@ class TextParser:
         
         return data
 
+    def validate_date_string(self, date_str):
+        """
+        Validates a date string and attempts to fix common OCR errors.
+        Returns a corrected date string or None if invalid.
+        """
+        if not date_str:
+            return None
+        
+        # Extract day, month, year from various formats
+        date_str_clean = re.sub(r'[\s\-/. ]+', '.', date_str).strip()
+        
+        # Try to parse DD.MM.YYYY or DD.MM.YY
+        match = re.match(r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', date_str_clean)
+        if not match:
+            return None
+        
+        day_str, month_str, year_str = match.groups()
+        
+        try:
+            day = int(day_str)
+            month = int(month_str)
+            year = int(year_str)
+            
+            # Fix 2-digit years
+            if year < 100:
+                current_year = datetime.now().year
+                century = 2000 if year <= (current_year % 100) + 20 else 1900
+                year = century + year
+            
+            # Validate month
+            if month < 1 or month > 12:
+                return None
+            
+            # Fix invalid days using OCR error correction
+            # Common OCR errors: 40->20, 40->09, 3X->3[valid], etc.
+            if day < 1 or day > 31:
+                # Try to fix common OCR misreadings
+                if day == 40:
+                    # 40 could be 09, 20, or 30
+                    # Try in order of likelihood
+                    for corrected_day in [9, 20, 30]:
+                        try:
+                            datetime(year, month, corrected_day)
+                            day = corrected_day
+                            break
+                        except ValueError:
+                            continue
+                elif day > 31:
+                    # Try removing first digit or other common errors
+                    day_alternatives = [int(day_str[-2:]), int(day_str[0]), int(day_str[-1])]
+                    for alt_day in day_alternatives:
+                        if 1 <= alt_day <= 31:
+                            try:
+                                datetime(year, month, alt_day)
+                                day = alt_day
+                                break
+                            except ValueError:
+                                continue
+                else:
+                    return None
+            
+            # Validate the corrected date
+            datetime(year, month, day)
+            return f"{day:02d}.{month:02d}.{year:04d}"
+        
+        except (ValueError, TypeError):
+            return None
+
     def _parse_visual_fields(self, lines):
         data = {
             "passport_number": None,
@@ -373,7 +373,7 @@ class TextParser:
         for i, line in enumerate(lines):
             matches = re.findall(date_pattern, line)
             for match in matches:
-                validated_date = validate_date_string(match)
+                validated_date = self.validate_date_string(match)
                 if validated_date:
                     all_dates.append((i, validated_date))
         
@@ -418,7 +418,7 @@ class TextParser:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match and not data["date_of_birth"]:
-                            validated = validate_date_string(match.group(1))
+                            validated = self.validate_date_string(match.group(1))
                             if validated:
                                 data["date_of_birth"] = validated
                                 break
@@ -428,7 +428,7 @@ class TextParser:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match:
-                            validated = validate_date_string(match.group(1))
+                            validated = self.validate_date_string(match.group(1))
                             if validated:
                                 data["date_of_issue"] = validated
                                 break
@@ -438,7 +438,7 @@ class TextParser:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match and not data["expiry_date"]:
-                            validated = validate_date_string(match.group(1))
+                            validated = self.validate_date_string(match.group(1))
                             if validated:
                                 data["expiry_date"] = validated
                                 break
@@ -450,13 +450,14 @@ class TextParser:
                 data["gender"] = 'M' if 'M' in cleaned else 'F'
                 break
 
-        # 6. Extract Authority - more flexible approach
+        # 6. Extract Authority - IMPROVED with multiple strategies
         authority_keywords = [
             "AUTHORITY", "MAKOM", "МАКОМИ", "ISSUING", "AUTORITE",
             "ВЫДАВШИЙ", "ВЫДАННЫЙ", "ORGAN", "ОРГАНОМ", "ISSUED BY",
             "МЕСТО ВЫДАЧИ", "ОРГАНОМ", "АУТИРИТИ", "MACOMI"
         ]
         
+        # Strategy 1: Look for explicit authority keywords
         for i, line in enumerate(lines):
             line_upper = line.upper()
             if any(k.upper() in line_upper for k in authority_keywords):
@@ -467,18 +468,38 @@ class TextParser:
                         # Skip common field labels and empty/short lines
                         if any(lbl in cand.upper() for lbl in ["PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER", "VALIDITY", "BIRTH", "SEX"]):
                             continue
-                        if len(cand) < 3:
+                        if len(cand) < 2:
                             continue
-                        latin = extract_latin_part(cand)
-                        if latin and len(latin) >= 3:
-                            data["authority"] = latin
-                            break
-                        elif is_latin_text(cand) and len(cand) >= 3:
-                            data["authority"] = cand
-                            break
-                if not data["authority"] and i + 1 < len(lines):
-                    cand = lines[i+1].strip()
-                    if len(cand) >= 3:
-                        data["authority"] = cand
+                        # Be more lenient - accept text with mixed case/corruption
+                        if len(cand) >= 2:
+                            # Extract Latin letters but keep corrupted text as fallback
+                            latin = extract_latin_part(cand)
+                            if latin and len(latin) >= 2:
+                                data["authority"] = latin
+                                break
+                            elif len(cand) >= 2:
+                                # Accept even corrupted text if it has at least 2 chars
+                                cleaned_authority = re.sub(r'[^\w\s]', '', cand).strip()
+                                if cleaned_authority and len(cleaned_authority) >= 2:
+                                    data["authority"] = cleaned_authority
+                                    break
+                if data["authority"]:
+                    break
+        
+        # Strategy 2: Fallback - look for text at expected authority position
+        # Authority often appears near the end before MRZ
+        if not data["authority"]:
+            # Look through last 10 lines (before MRZ usually)
+            for i in range(max(0, len(lines) - 10), len(lines)):
+                line = lines[i].strip()
+                # Skip MRZ lines and common keywords
+                if any(skip in line.upper() for skip in ["P<", "PASSPORT", "DATE", "BIRTH", "EXPIRY"]):
+                    continue
+                # If line contains "DIA" or "GBAO" or similar authority markers
+                if any(marker in line.upper() for marker in ["DIA", "GBAO", "ORGAN", "MACOMI"]):
+                    cleaned = re.sub(r'[^\w\s]', '', line).strip()
+                    if len(cleaned) >= 2:
+                        data["authority"] = cleaned
+                        break
 
         return data
