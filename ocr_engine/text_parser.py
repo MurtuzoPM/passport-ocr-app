@@ -63,22 +63,20 @@ class TextParser:
                 
                 if parsed_data["passport_number"]:
                     parsed_data["confidence"] = max(parsed_data["confidence"], 0.95)
-                    # Note: MRZ does not contain date_of_issue and authority,
-                    # so we still attempt to parse those from visual fields even if MRZ is detected.
-                    visual_fields = self._parse_visual_fields(lines)
-                    parsed_data["date_of_issue"] = normalize_date(visual_fields.get("date_of_issue"))
-                    parsed_data["authority"] = visual_fields.get("authority")
-                    
-                    parsed_data["date_of_birth"] = normalize_date(parsed_data["date_of_birth"])
-                    parsed_data["expiry_date"] = normalize_date(parsed_data["expiry_date"])
-                    return parsed_data
             except Exception as e:
                 print(f"MRZ parsing warning: {str(e)}")
 
-        # Step 2: Visual Parser Fallback (Secondary Priority)
+        # Step 2: Visual Parser - ALWAYS run to capture date_of_issue and authority
+        # These fields are NOT in MRZ, only in visual text
         visual_data = self._parse_visual_fields(lines)
+        
+        # Only override MRZ fields if visual fields are empty
         for key, val in visual_data.items():
             if not parsed_data.get(key) and val:
+                parsed_data[key] = val
+            # Always prioritize visual fields for date_of_issue and authority
+            # since MRZ never contains these
+            elif key in ["date_of_issue", "authority"] and val:
                 parsed_data[key] = val
 
         # Standardize gender
