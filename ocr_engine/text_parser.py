@@ -299,29 +299,46 @@ class TextParser:
                             data["nationality"] = cand
                             break
 
-        # 4. Extract Birth, Issue, and Expiry Dates
-        dob_keywords = ["BIRTH", "NAISSANCE", "NE", "DOB", "TABA\u041B\u041B\u0423\u0414"]
-        issue_keywords = ["ISSUE", "ОГОЗИ", "ОFОЗИ", "DATE OF ISSUE", "ОГОЗИ ЭЪТИБОР"]
-        expiry_keywords = ["EXPIRY", "EXPIRATION", "EXP", "АНЧОМИ"]
+        # 4. Extract Birth, Issue, and Expiry Dates - IMPROVED KEYWORD MATCHING
+        dob_keywords = [
+            "BIRTH", "NAISSANCE", "NE", "DOB", "ТАВАЛЛУДИ", "DATE OF BIRTH",
+            "ДАТА РОЖДЕНИЯ", "ТАВАЛИД", "BIRTHDAY"
+        ]
+        
+        issue_keywords = [
+            "ISSUE", "ОГОЗИ", "ОFОЗИ", "DATE OF ISSUE", "ОГОЗИ ЭЪТИБОР", 
+            "ДАТА ВЫДАЧИ", "ВЫДАН", "ISSUED", "ДАТА ИЗДАНИЯ", "ТАЪЙИД", "ДАТА ИЗДАЧИ",
+            "ВЫДАЧИ", "OFOSI"
+        ]
+        
+        expiry_keywords = [
+            "EXPIRY", "EXPIRATION", "EXP", "АНЧОМИ", "ИСТЕКАЕТ", 
+            "ДЕЙСТВИТЕЛЕН", "VALID UNTIL", "ДЕЙСТВ", "ANCOMI"
+        ]
         
         date_pattern = r'(\b\d{1,2}[-/. ,:;]+(?:\d{1,2}|[A-Za-z]{3,10})[-/. ,:;]+\d{2,4}\b)'
         
         for i, line in enumerate(lines):
-            if any(k in line.upper() for k in dob_keywords):
+            # Improved matching: check if any keyword is in the line (case-insensitive)
+            line_upper = line.upper()
+            
+            if any(k.upper() in line_upper for k in dob_keywords):
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match:
                             data["date_of_birth"] = match.group(1)
                             break
-            if any(k in line.upper() for k in issue_keywords):
+            
+            if any(k.upper() in line_upper for k in issue_keywords):
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
                         if match:
                             data["date_of_issue"] = match.group(1)
                             break
-            if any(k in line.upper() for k in expiry_keywords):
+            
+            if any(k.upper() in line_upper for k in expiry_keywords):
                 for offset in [0, 1, -1, 2]:
                     if 0 <= i + offset < len(lines):
                         match = re.search(date_pattern, lines[i+offset])
@@ -336,23 +353,32 @@ class TextParser:
                 data["gender"] = 'M' if 'M' in cleaned else 'F'
                 break
 
-        # 6. Extract Authority
-        authority_keywords = ["AUTHORITY", "MAKOM", "МАКОМИ", "ISSUING", "AUTORITE"]
+        # 6. Extract Authority - IMPROVED KEYWORD MATCHING
+        authority_keywords = [
+            "AUTHORITY", "MAKOM", "МАКОМИ", "ISSUING", "AUTORITE",
+            "ВЫДАВШИЙ", "ВЫДАННЫЙ", "ORGAN", "ОРГАНОМ", "ISSUED BY",
+            "МЕСТО ВЫДАЧИ", "ОРГАНОМ", "АУТИРИТИ", "MACOMI"
+        ]
+        
         for i, line in enumerate(lines):
-            if any(k in line.upper() for k in authority_keywords):
+            line_upper = line.upper()
+            if any(k.upper() in line_upper for k in authority_keywords):
                 for offset in [1, 2, 3]:
                     if i + offset < len(lines):
                         cand = lines[i+offset].strip()
-                        if any(lbl in cand.upper() for lbl in ["PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER"]):
+                        # Skip common field labels
+                        if any(lbl in cand.upper() for lbl in ["PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER", "VALIDITY", "BIRTH", "SEX"]):
                             continue
                         latin = extract_latin_part(cand)
-                        if latin:
+                        if latin and len(latin) >= 3:
                             data["authority"] = latin
                             break
-                        elif is_latin_text(cand):
+                        elif is_latin_text(cand) and len(cand) >= 3:
                             data["authority"] = cand
                             break
                 if not data["authority"] and i + 1 < len(lines):
-                    data["authority"] = lines[i+1].strip()
+                    cand = lines[i+1].strip()
+                    if len(cand) >= 3 and not cand.isupper():
+                        data["authority"] = cand
 
         return data
