@@ -149,7 +149,7 @@ The system supports **both MRZ (Machine Readable Zone)** and **visual text field
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/passport-ocr-app.git
+git clone https://github.com/MurtuzoPM/passport-ocr-app.git
 cd passport-ocr-app
 ```
 
