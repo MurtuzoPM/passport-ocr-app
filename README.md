@@ -33,7 +33,7 @@
 
 ## 🚀 Overview
 
-The **Passport OCR Scanner** is a full-stack web application that automatically extracts structured information from scanned passport pages. It combines **computer vision preprocessing** (grayscale, denoising, contrast enhancement) with **EasyOCR** text recognition and a sophisticated **NLP parsing engine** to extract fields such as:
+The **Passport OCR Scanner** is an application that automatically extracts structured information from scanned passport pages. It combines **computer vision preprocessing** (grayscale, denoising, contrast enhancement) with **EasyOCR** text recognition and a sophisticated **NLP parsing engine** to extract fields such as:
 
 | Field | Example |
 |-------|---------|
