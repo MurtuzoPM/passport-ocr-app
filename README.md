@@ -13,7 +13,6 @@
 
 - [Overview](#-overview)
 - [Features](#-features)
-- [Demo](#-demo)
 - [Architecture](#-architecture)
 - [Tech Stack](#-tech-stack)
 - [Installation](#-installation)
@@ -24,7 +23,6 @@
   - [Batch Processing](#batch-processing)
 - [API Reference](#-api-reference)
 - [Project Structure](#-project-structure)
-- [Screenshots](#-screenshots)
 - [Development](#-development)
 - [Troubleshooting](#-troubleshooting)
 - [License](#-license)
@@ -76,21 +74,6 @@ The system supports **both MRZ (Machine Readable Zone)** and **visual text field
 - **Health Endpoint** — System readiness probe with EasyOCR availability status
 
 ---
-
-## 🖼️ Demo
-
-<!-- Replace these with your own screenshots -->
-| Web UI - Upload & Results | Batch Processing |
-|:---:|:---:|
-| ![Single Scan](screenshots/single_scan.png) | ![Batch Scan](screenshots/batch_scan.png) |
-| *Drag & drop a passport image → instant structured data extraction* | *Process multiple passports with real-time progress and statistics* |
-
-| Raw JSON Inspection | Mobile View |
-|:---:|:---:|
-| ![JSON Modal](screenshots/json_modal.png) | ![Mobile](screenshots/mobile.png) |
-| *Inspect the complete extracted JSON schema* | *Responsive design for mobile and tablet* |
-
-> **Note:** Add your screenshots to the `screenshots/` directory and update the image paths above.
 
 ---
 
@@ -372,7 +355,6 @@ passport-ocr-app/
 ├── requirements.txt                # Python dependencies
 ├── test_app.py                     # Module load & smoke test
 ├── README.md                       # This file
-├── screenshots/                    # Screenshot directory (for your images)
 ├── uploads/                        # Temporary upload directory (auto-created)
 │
 ├── utils/
@@ -396,25 +378,6 @@ passport-ocr-app/
 └── templates/
     └── index.html                  # Single-page app with Tailwind CSS UI
 ```
-
----
-
-## 🖥️ Screenshots
-
-To add screenshots:
-
-1. Create a `screenshots/` directory in the project root
-2. Add your screenshots (PNG, JPG, or WebP)
-3. Update the image references in the [Demo](#-demo) section above
-
-### Suggested Screenshots to Include
-
-| Screenshot | What to Capture |
-|------------|----------------|
-| `single_scan.png` | The single scan view with a processed passport result showing all extracted fields, confidence bar, and raw JSON |
-| `batch_scan.png` | The batch scan view with multiple files processed, showing the results table and session statistics card |
-| `json_modal.png` | The modal window showing raw JSON output when clicking "Inspect JSON" on a batch row |
-| `mobile.png` | The mobile-responsive view of the application (use Chrome DevTools responsive mode) |
 
 ---
 
