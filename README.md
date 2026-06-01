@@ -1,4 +1,4 @@
-# 📖 Passport OCR Scanner
+#  Passport OCR Scanner
 
 > **An intelligent automated OCR pipeline that extracts structured metadata from passport images using EasyOCR, OpenCV, and advanced NLP parsing.**
 
@@ -9,7 +9,7 @@
 
 ---
 
-## 📋 Table of Contents
+##  Table of Contents
 
 - [Overview](#-overview)
 - [Features](#-features)
@@ -29,7 +29,7 @@
 
 ---
 
-## 🚀 Overview
+##  Overview
 
 The **Passport OCR Scanner** is an application that automatically extracts structured information from scanned passport pages. It combines **computer vision preprocessing** (grayscale, denoising, contrast enhancement) with **EasyOCR** text recognition and a sophisticated **NLP parsing engine** to extract fields such as:
 
@@ -48,23 +48,23 @@ The system supports **both MRZ (Machine Readable Zone)** and **visual text field
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core Capabilities
-- **📄 MRZ Parsing** — Extracts data from ICAO-standard Machine Readable Zones (lines 1 & 2) with high confidence
-- **👁️ Visual Field Extraction** — NLP-driven parsing of non-MRZ fields (date of issue, authority) using keyword detection and positional heuristics
-- **🖼️ Smart Image Preprocessing** — Automatic grayscale conversion, CLAHE contrast enhancement, bilateral denoising, and dynamic resolution scaling
-- **🔍 OCR Error Correction** — Intelligent date validation that corrects common OCR misreadings (e.g., `40` → `20`/`09`/`30`, `O` → `0`, `I` → `1`)
-- **📊 Confidence Scoring** — Hybrid confidence metric combining raw OCR confidence with parsed field validation quality
-- **🌐 Fallback OCR Engine** — Graceful degradation when EasyOCR is unavailable (mock demo data for testing)
+- ** MRZ Parsing** — Extracts data from ICAO-standard Machine Readable Zones (lines 1 & 2) with high confidence
+- ** Visual Field Extraction** — NLP-driven parsing of non-MRZ fields (date of issue, authority) using keyword detection and positional heuristics
+- ** Smart Image Preprocessing** — Automatic grayscale conversion, CLAHE contrast enhancement, bilateral denoising, and dynamic resolution scaling
+- ** OCR Error Correction** — Intelligent date validation that corrects common OCR misreadings (e.g., `40` → `20`/`09`/`30`, `O` → `0`, `I` → `1`)
+- ** Confidence Scoring** — Hybrid confidence metric combining raw OCR confidence with parsed field validation quality
+- ** Fallback OCR Engine** — Graceful degradation when EasyOCR is unavailable (mock demo data for testing)
 
 ### Web UI Features
-- **🎯 Drag & Drop Upload** — Modern file upload with drag-and-drop support for both single and batch modes
-- **📦 Batch Processing** — Upload multiple passport images and process them sequentially with real-time progress tracking
-- **📋 Results Dashboard** — Clean, structured field display with MRZ detection badges and confidence meters
-- **🔗 JSON Export** — Copy to clipboard or download results as JSON files (single & batch)
-- **🔍 Raw Inspection** — Modal viewer for inspecting complete JSON output per file
-- **📊 Session Statistics** — Batch processing summary with success rates, average confidence, and cumulative time
+- ** Drag & Drop Upload** — Modern file upload with drag-and-drop support for both single and batch modes
+- ** Batch Processing** — Upload multiple passport images and process them sequentially with real-time progress tracking
+- ** Results Dashboard** — Clean, structured field display with MRZ detection badges and confidence meters
+- ** JSON Export** — Copy to clipboard or download results as JSON files (single & batch)
+- ** Raw Inspection** — Modal viewer for inspecting complete JSON output per file
+- ** Session Statistics** — Batch processing summary with success rates, average confidence, and cumulative time
 
 ### API Features
 - **RESTful Design** — Clean JSON API with proper HTTP status codes
@@ -77,7 +77,7 @@ The system supports **both MRZ (Machine Readable Zone)** and **visual text field
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 ┌──────────────┐     ┌─────────────────┐     ┌───────────────────┐
@@ -118,7 +118,7 @@ The system supports **both MRZ (Machine Readable Zone)** and **visual text field
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### Backend
 | Technology | Purpose |
@@ -139,7 +139,7 @@ The system supports **both MRZ (Machine Readable Zone)** and **visual text field
 
 ---
 
-## 📦 Installation
+##  Installation
 
 ### Prerequisites
 - Python 3.8 or higher
@@ -182,7 +182,7 @@ The server will start at `http://127.0.0.1:5000`.
 
 ---
 
-## ⚙️ Configuration
+##  Configuration
 
 All configuration is managed via `config.py`:
 
@@ -200,7 +200,7 @@ You can override these via environment variables or by modifying `config.py` dir
 
 ---
 
-## 🎯 Usage
+##  Usage
 
 ### Web UI
 
@@ -314,7 +314,7 @@ curl http://127.0.0.1:5000/health
 
 ---
 
-## 📚 API Reference
+##  API Reference
 
 ### `GET /`
 Interactive REST API documentation (returns JSON describing all endpoints).
@@ -346,7 +346,7 @@ Extract passport data from multiple images.
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 passport-ocr-app/
@@ -381,7 +381,7 @@ passport-ocr-app/
 
 ---
 
-## 🧪 Development
+##  Development
 
 ### Running Tests
 
@@ -428,7 +428,7 @@ For production deployment:
 
 ---
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### EasyOCR Not Found / Import Error
 
@@ -461,13 +461,13 @@ Warning: EasyOCR library is not installed. Using fallback OCR mode.
 
 ---
 
-## 📄 License
+##  License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - [EasyOCR](https://github.com/JaidedAI/EasyOCR) — Ready-to-use OCR with 80+ languages
 - [OpenCV](https://opencv.org/) — Computer vision library
@@ -477,6 +477,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ---
 
-<p align="center">
-  Made with ❤️ for automated document processing
-</p>
+
