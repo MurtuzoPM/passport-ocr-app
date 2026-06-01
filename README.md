@@ -9,24 +9,6 @@
 
 ---
 
-##  Table of Contents
-
-- [Overview](#-overview)
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Tech Stack](#-tech-stack)
-- [Installation](#-installation)
-- [Configuration](#-configuration)
-- [Usage](#-usage)
-  - [Web UI](#web-ui)
-  - [REST API](#rest-api)
-  - [Batch Processing](#batch-processing)
-- [API Reference](#-api-reference)
-- [Project Structure](#-project-structure)
-- [Development](#-development)
-- [Troubleshooting](#-troubleshooting)
-- [License](#-license)
-
 ---
 
 ##  Overview
