@@ -540,12 +540,10 @@ class TextParser:
             "VIRANOMAINEN", "AUSSTELLENDE", "ISSUE", "ISSUED"
         ]
         
-<<<<<<< HEAD
         skip_labels = {"PASSPORT", "DATE", "EXPIRY", "SIGNATURE", "HOLDER", "VALIDITY", "BIRTH", "SEX", "GIVEN", "SURNAME", "NATIONALITY"}
         
-=======
+
         # Strategy 1: Look for explicit authority keywords
->>>>>>> 5971c0c68ddf9998341e3abe90730d5770604cb5
         for i, line in enumerate(lines):
             line_upper = line.upper()
             if any(k.upper() in line_upper for k in authority_keywords):
@@ -559,7 +557,6 @@ class TextParser:
                             continue
                         if len(cand) < 2:
                             continue
-<<<<<<< HEAD
                         # Skip lines that are just dates or document numbers
                         if re.match(r'^[\d\s\-/.]+$', cand):
                             continue
@@ -574,7 +571,6 @@ class TextParser:
                     cand = lines[i+1].strip()
                     if len(cand) >= 3:
                         data["authority"] = cand
-=======
                         # Be more lenient - accept text with mixed case/corruption
                         if len(cand) >= 2:
                             # Extract Latin letters but keep corrupted text as fallback
@@ -606,7 +602,6 @@ class TextParser:
                     if len(cleaned) >= 2:
                         data["authority"] = cleaned
                         break
->>>>>>> 5971c0c68ddf9998341e3abe90730d5770604cb5
 
         # 7. Fallback: If authority still not found, try to find it near the bottom of the document
         # Authority text is often on the same or next line after a date_of_issue or expiry_date label
